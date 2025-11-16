@@ -34,8 +34,8 @@ class ViolationTracker:
             "unauthorized_change": 25,  # 勝手な要件変更
             "sample_data_confusion": 20 # サンプルデータ誤表示
         }
-        self.block_threshold = 50  # 50点で次回ブロック
-        self.warning_threshold = 30  # 30点で警告
+        self.block_threshold = 10  # 10点で次回ブロック（1回違反で即ブロック）
+        self.warning_threshold = 5  # 5点で警告
 
     def load_violations(self) -> dict:
         """違反履歴を読み込み"""
