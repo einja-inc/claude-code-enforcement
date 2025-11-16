@@ -1,0 +1,74 @@
+# Claude Code Enforcement System - .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Logs and temporary files
+logs/*.txt
+logs/*.log
+logs/*.jsonl
+!logs/.gitkeep
+
+# Violation tracking (user-specific)
+logs/violations.json
+
+# Session-specific files
+logs/last_response.txt
+logs/last_session.txt
+todos.json
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Backup files
+*-backup.bat
+*-backup.ps1
+*-original.bat
+*-before-*.bat
+
+# Test outputs
+test_response.txt
+test_results.json
+
+# Personal configuration (optional - remove if you want to share)
+# .claude/personal_config.json
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store

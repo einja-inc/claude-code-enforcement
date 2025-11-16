@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Pre-commit hook: CLAUDE.mdルール違反チェック
+コミット前に自動的にルール違反を検出し、違反がある場合はコミットをブロックする
+"""
+
+import sys
+import os
+import subprocess
+from pathlib import Path
+
+# 文字化け防止
+sys.stdout.reconfigure(encoding='utf-8')
+
+def check_claude_rules():
+    """
+    CLAUDE.mdルールをチェック
+
+    Returns:
+        int: 0 = 成功, 1 = 失敗（コミットをブロック）
+    """
+    print('=' * 60)
+    print('🛡️ CLAUDE.mdルール違反チェック (Pre-commit Hook)')
+    print('=' * 60)
+
+    # .claude/scripts/auto_claude_md_checker.py を実行
+    checker_script = Path.home() / '.claude' / 'scripts' / 'auto_claude_md_checker.py'
+
+    if not checker_script.exists():
+        print(f'⚠️ チェッカースクリプトが見つかりません: {checker_script}')
+        print('   コミットを続行します（チェックスキップ）')
+        return 0
+
+    # 最後のコミットメッセージを取得
+    try:
+        commit_msg = subprocess.check_output(
+            ['git', 'log', '-1', '--pretty=%B'],
+            encoding='utf-8',
+            stderr=subprocess.DEVNULL
+        ).strip()
+    except subprocess.CalledProcessError:
+        commit_msg = 'Initial commit'
+
+    # チェッカーを実行
+    try:
+        result = subprocess.run(
+            ['py', str(checker_script), commit_msg],
+            capture_output=True,
+            text=True,
+            encoding='utf-8'
+        )
+
+        # チェッカーの出力を表示
+        if result.stdout:
+            print(result.stdout)
+
+        if result.returncode != 0:
+            print('')
+            print('❌ CLAUDE.mdルール違反が検出されました')
+            print('   コミットをブロックします')
+            print('')
+            print('修正方法:')
+            print('  1. データ分析/マッピングタスクの場合、Codex analystと協力してください')
+            print('  2. TodoWriteを使用してタスクを管理してください')
+            print('  3. MANDATORY_CODEX_CHECK.mdを参照してください')
+            print('')
+            print('緊急時のみ: git commit --no-verify でチェックをスキップできます')
+            return 1
+
+        print('✅ CLAUDE.mdルール違反なし - コミット続行')
+        return 0
+
+    except Exception as e:
+        print(f'⚠️ チェック中にエラーが発生しました: {e}')
+        print('   コミットを続行します（チェックスキップ）')
+        return 0
+
+if __name__ == '__main__':
+    sys.exit(check_claude_rules())

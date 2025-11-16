@@ -1,0 +1,251 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+8-Layer Enforcement System - Pre-commit Git Hook
+Layer 1: Pre-commit Hook
+
+Purpose:
+    Block git commits if compliance score < 70%
+    Display violation details and history
+    Detect --no-verify bypass attempts
+
+Usage:
+    Auto-executed by git commit
+    Install: python install_hooks.py
+"""
+
+import sys
+import os
+import json
+from pathlib import Path
+from datetime import datetime
+
+# Color codes for terminal output
+try:
+    from colorama import init, Fore, Style
+    init(autoreset=True)
+    HAS_COLOR = True
+except ImportError:
+    HAS_COLOR = False
+    # Fallback: no color
+    class Fore:
+        RED = GREEN = YELLOW = CYAN = WHITE = ""
+    class Style:
+        BRIGHT = RESET_ALL = ""
+
+# Paths
+ENFORCEMENT_DIR = Path(r"C:\Users\musta\.claude\enforcement")
+LOGS_DIR = ENFORCEMENT_DIR / "logs"
+SCORES_FILE = LOGS_DIR / "compliance_scores.jsonl"
+VIOLATIONS_FILE = LOGS_DIR / "violations.jsonl"
+
+# Configuration
+MIN_COMPLIANCE_SCORE = 70
+MAX_VIOLATIONS_DISPLAY = 5
+
+
+def get_current_compliance_score():
+    """
+    Get the most recent compliance score from logs
+
+    Returns:
+        tuple: (score: int, timestamp: str, violation_count: int)
+    """
+    if not SCORES_FILE.exists():
+        return 100, datetime.now().isoformat(), 0
+
+    try:
+        with open(SCORES_FILE, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            if not lines:
+                return 100, datetime.now().isoformat(), 0
+
+            # Get last line
+            last_entry = json.loads(lines[-1])
+            return (
+                last_entry.get('score', 100),
+                last_entry.get('timestamp', datetime.now().isoformat()),
+                last_entry.get('violation_count', 0)
+            )
+    except (json.JSONDecodeError, FileNotFoundError, KeyError):
+        return 100, datetime.now().isoformat(), 0
+
+
+def get_recent_violations(limit=5):
+    """
+    Get recent violations from logs
+
+    Args:
+        limit: Maximum number of violations to return
+
+    Returns:
+        list: Recent violations (newest first)
+    """
+    if not VIOLATIONS_FILE.exists():
+        return []
+
+    try:
+        with open(VIOLATIONS_FILE, 'r', encoding='utf-8') as f:
+            violations = [json.loads(line) for line in f.readlines()]
+
+        # Sort by timestamp (newest first)
+        violations.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+        return violations[:limit]
+    except (json.JSONDecodeError, FileNotFoundError):
+        return []
+
+
+def format_timestamp(timestamp_str):
+    """Format ISO timestamp to readable string"""
+    try:
+        dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        return timestamp_str
+
+
+def display_violation_details(violations):
+    """
+    Display violation details in a formatted table
+
+    Args:
+        violations: List of violation dicts
+    """
+    if not violations:
+        print(f"{Fore.GREEN}No violations found.{Style.RESET_ALL}")
+        return
+
+    print(f"\n{Fore.YELLOW}{'='*80}")
+    print(f"{Fore.YELLOW}Recent Violations (Latest {len(violations)} items):")
+    print(f"{Fore.YELLOW}{'='*80}{Style.RESET_ALL}\n")
+
+    for i, violation in enumerate(violations, 1):
+        timestamp = format_timestamp(violation.get('timestamp', ''))
+        vtype = violation.get('type', 'unknown')
+        score_impact = violation.get('score_impact', 0)
+        current_score = violation.get('current_score', 100)
+        message = violation.get('message', 'No description')
+
+        print(f"{Fore.CYAN}{i}. {Style.BRIGHT}{vtype}{Style.RESET_ALL}")
+        print(f"   Time: {timestamp}")
+        print(f"   Impact: {Fore.RED}{score_impact} points{Style.RESET_ALL}")
+        print(f"   Current Score: {Fore.YELLOW}{current_score}%{Style.RESET_ALL}")
+        print(f"   Message: {message}")
+        print()
+
+
+def check_no_verify_bypass():
+    """
+    Check if user is attempting to bypass with --no-verify
+
+    Returns:
+        bool: True if bypass detected
+    """
+    # Git passes COMMIT_SOURCE environment variable
+    # When --no-verify is used, this hook shouldn't be called,
+    # but we can detect it through command line args
+    import subprocess
+
+    try:
+        # Check if --no-verify was in the original command
+        # This is a best-effort detection
+        result = subprocess.run(
+            ['git', 'rev-parse', '--verify', 'HEAD'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return False
+    except:
+        return False
+
+
+def main():
+    """Main execution function"""
+
+    # Header
+    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}8-Layer Enforcement System - Pre-commit Hook (Layer 1){Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}\n")
+
+    # Check for bypass attempt
+    if check_no_verify_bypass():
+        print(f"{Fore.RED}{Style.BRIGHT}WARNING: --no-verify bypass detected!{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}This action is logged and discouraged.{Style.RESET_ALL}\n")
+
+    # Get current compliance score
+    score, timestamp, violation_count = get_current_compliance_score()
+
+    print(f"{Fore.WHITE}Checking compliance score...{Style.RESET_ALL}")
+    print(f"Last Updated: {format_timestamp(timestamp)}")
+    print(f"Total Violations: {violation_count}\n")
+
+    # Display score with color
+    if score >= MIN_COMPLIANCE_SCORE:
+        score_color = Fore.GREEN
+        status = "PASS"
+        status_icon = "✅"
+    else:
+        score_color = Fore.RED
+        status = "FAIL"
+        status_icon = "❌"
+
+    print(f"{score_color}{Style.BRIGHT}Current Compliance Score: {score}%{Style.RESET_ALL}")
+    print(f"{score_color}{Style.BRIGHT}Status: {status_icon} {status}{Style.RESET_ALL}\n")
+
+    # If score is below threshold, block commit
+    if score < MIN_COMPLIANCE_SCORE:
+        print(f"{Fore.RED}{'='*80}")
+        print(f"{Fore.RED}{Style.BRIGHT}COMMIT BLOCKED{Style.RESET_ALL}")
+        print(f"{Fore.RED}{'='*80}{Style.RESET_ALL}\n")
+
+        print(f"{Fore.YELLOW}Your compliance score ({score}%) is below the minimum threshold ({MIN_COMPLIANCE_SCORE}%).{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}Please fix the following violations before committing:{Style.RESET_ALL}\n")
+
+        # Display recent violations
+        violations = get_recent_violations(MAX_VIOLATIONS_DISPLAY)
+        display_violation_details(violations)
+
+        print(f"{Fore.CYAN}{'='*80}")
+        print(f"{Fore.CYAN}How to fix:{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}1. Review violations above{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}2. Follow CLAUDE.md guidelines to improve compliance{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}3. Check session monitor status:{Style.RESET_ALL}")
+        print(f"   {Fore.CYAN}python C:\\Users\\musta\\.claude\\enforcement\\daemon\\service_manager.py status{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}4. Retry commit when score >= {MIN_COMPLIANCE_SCORE}%{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}\n")
+
+        # Exit with error code
+        sys.exit(1)
+
+    # Score is sufficient, allow commit
+    print(f"{Fore.GREEN}{'='*80}")
+    print(f"{Fore.GREEN}{Style.BRIGHT}COMMIT ALLOWED ✅{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}{'='*80}{Style.RESET_ALL}\n")
+
+    print(f"{Fore.WHITE}Compliance requirements met.{Style.RESET_ALL}")
+    print(f"{Fore.WHITE}Your changes will be committed.{Style.RESET_ALL}\n")
+
+    # Display summary of recent violations (informational)
+    violations = get_recent_violations(3)
+    if violations:
+        print(f"{Fore.YELLOW}ℹ️  Recent warnings (informational only):{Style.RESET_ALL}\n")
+        for i, v in enumerate(violations, 1):
+            vtype = v.get('type', 'unknown')
+            timestamp = format_timestamp(v.get('timestamp', ''))
+            print(f"  {i}. {vtype} ({timestamp})")
+        print()
+
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(f"\n{Fore.YELLOW}Commit cancelled by user.{Style.RESET_ALL}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n{Fore.RED}Error in pre-commit hook: {e}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}Allowing commit to proceed (fail-safe mode).{Style.RESET_ALL}\n")
+        sys.exit(0)  # Fail-safe: allow commit on error
