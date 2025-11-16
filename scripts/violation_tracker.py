@@ -28,11 +28,17 @@ class ViolationTracker:
 
         # 違反の重みとブロック閾値
         self.violation_weights = {
-            "no_thinking": 10,          # thinkingブロックなし
-            "no_codex": 15,             # Codex協力なし（複数ファイル）
-            "no_todowrite": 5,          # TodoWrite不足
-            "unauthorized_change": 25,  # 勝手な要件変更
-            "sample_data_confusion": 20 # サンプルデータ誤表示
+            "no_thinking": 10,               # thinkingブロックなし
+            "no_codex": 10,                  # Codex協力なし（単一ファイルでも）
+            "no_todowrite": 10,              # TodoWrite不足（8項目未満）
+            "unauthorized_change": 15,       # 勝手な要件変更
+            "sample_data_confusion": 20,     # サンプルデータ誤表示
+            "no_clarification": 10,          # 曖昧要求を質問せず実装
+            "excel_read_tool": 10,           # ExcelにRead tool使用
+            "excel_csv_request": 10,         # CSV変換依頼
+            "no_parallel_execution": 10,     # 並列実行すべきを逐次実行
+            "join_key_speculation": 15,      # 結合キー推測（特に危険）
+            "requirement_speculation": 10,   # 推測による実装
         }
         self.block_threshold = 10  # 10点で次回ブロック（1回違反で即ブロック）
         self.warning_threshold = 5  # 5点で警告
