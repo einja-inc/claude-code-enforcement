@@ -1,5 +1,45 @@
 # ⚡ ULTRA PRIORITY RULES - AUTOMATIC ENFORCEMENT (最優先・自動適用)
 
+## 🖥️ Rule 0: 長時間処理は別ターミナルで実行（MANDATORY TERMINAL EXECUTION）
+
+**基本原則: スクレイピング・分析・バッチ処理など長時間かかる処理は、必ず別ターミナルで直接実行する**
+
+### ✅ 必ず守るべきルール（絶対厳守）
+
+**1. 別ターミナルで実行すべき処理**
+- スクレイピング（Webからのデータ取得）
+- 大量データの分析・処理
+- 機械学習モデルの学習
+- 画像処理（大量ファイル）
+- バッチ処理（100件以上）
+- 10分以上かかる見込みの処理
+
+**2. 実行方法**
+```bash
+# ❌ 禁止: バックグラウンド実行（セッション切断で停止する）
+py script.py &
+run_in_background: true
+
+# ✅ 正しい: 別ターミナルで直接実行
+start cmd /k "py script.py"
+```
+
+**3. 理由**
+- Claude Codeのバックグラウンドタスクはセッション切断で停止する
+- 別ターミナルで実行すれば、Claude Codeを閉じても処理が継続する
+- 進捗が直接確認できる
+
+### 📋 チェックリスト
+
+処理を開始する前に確認:
+- [ ] 処理時間は10分以上かかりそうか？
+- [ ] スクレイピングやバッチ処理か？
+- [ ] 進捗ファイルは設定されているか？
+
+**1つでも「はい」があれば、`start cmd /k` で別ターミナル実行**
+
+---
+
 ## 🧠 Rule 1: ULTRA THINK MODE (必須・常時有効)
 
 **このルールは全ての会話で自動的に適用されます。**
@@ -10,6 +50,164 @@
 
 1. **Extended Thinking（拡張思考）を使用**
    - `
+
+## 📚 Git履歴参照ルール（MANDATORY GIT HISTORY CHECK）
+
+**基本原則: ファイル修正時は必ずgit履歴を参照し、過去の修正意図・経緯を理解してから作業する**
+
+### ✅ 必ず守るべきルール（絶対厳守）
+
+**1. ファイル修正前のgit履歴確認（必須）**
+- ✅ **正しい**: `git log --oneline -10 <ファイル名>` で最近の修正履歴を確認
+- ✅ **正しい**: `git show <commit-hash>` で具体的な変更内容を確認
+- ❌ **禁止**: 履歴を確認せずに修正を開始
+
+**適用範囲**:
+- LookMLファイル（`.view.lkml`, `.model.lkml`）
+- Pythonスクリプト（`.py`）
+- 設定ファイル（`.json`, `.yaml`, `.md`）
+- **全てのバージョン管理されたファイル**
+
+**2. 履歴から学ぶべき情報**
+```bash
+# 最近10件のコミット履歴を確認
+git log --oneline -10 views/order_backlog_breakdown_total.view.lkml
+
+# 特定のコミットの詳細を確認
+git show <commit-hash>
+
+# ファイルの変更履歴を行単位で確認
+git blame views/order_backlog_breakdown_total.view.lkml
+```
+
+**確認事項:**
+- なぜこの修正が行われたのか？（修正意図）
+- 過去に同じようなエラーが発生していないか？
+- 同じ修正を他のファイルにも適用すべきか？
+- 修正の副作用は何か？
+
+**3. 履歴参照の必須タイミング**
+```
+ファイル修正タスク受領
+  ↓
+[ ] git log --oneline -10 <ファイル名> 実行
+  ↓
+[ ] 最近の修正内容を確認（コミットメッセージ）
+  ↓
+[ ] 関連する修正があればgit showで詳細確認
+  ↓
+[ ] 過去の修正意図を理解
+  ↓
+[ ] 修正開始
+```
+
+### 🔧 実装パターン
+
+**パターン1: ファイル修正前の履歴確認**
+```bash
+# 1. 修正履歴を確認
+git log --oneline -10 views/order_backlog_breakdown_total.view.lkml
+
+# 2. 最近のコミットを確認
+git show HEAD
+
+# 3. 特定の行の修正履歴を確認
+git blame views/order_backlog_breakdown_total.view.lkml | grep "fy.current_fiscal_period"
+```
+
+**パターン2: 同様の修正が他にないか検索**
+```bash
+# 同じパターンが他のファイルにもないか確認
+grep -r "fy.current_fiscal_period" views/
+
+# 過去に同じエラーが修正されていないか確認
+git log --all --grep="current_fiscal_period"
+```
+
+**パターン3: 修正の影響範囲を確認**
+```bash
+# このファイルを参照している他のファイルを検索
+git log --all --source --full-history -- views/order_backlog_breakdown_total.view.lkml
+
+# 同じCTE構造を持つファイルを検索
+grep -r "next_fiscal_backlog" views/
+```
+
+### 📋 チェックリスト（修正前に確認）
+
+ファイル修正を開始する前に、以下を確認:
+
+- [ ] `git log --oneline -10 <ファイル名>` を実行したか？
+- [ ] 最近のコミットメッセージを読んだか？
+- [ ] 過去に同じようなエラー修正がないか確認したか？
+- [ ] 同じ修正を他のファイルにも適用すべきか検討したか？
+- [ ] 過去の修正意図を理解したか？
+
+**1つでも「いいえ」があれば、git履歴を確認してから修正してください。**
+
+### 🎯 具体例：正しい対応 vs 間違った対応
+
+#### ケース1: GROUP BY制約エラーの修正
+
+```
+❌ 間違った対応:
+BigQueryエラー発生
+→ すぐに修正（MAX()で囲む）
+→ 他のファイルに同じ問題があることに気づかない
+
+✅ 正しい対応:
+BigQueryエラー発生
+→ git log --oneline -10 views/order_backlog_breakdown_total.view.lkml
+→ 過去に同様のエラーがないか確認
+→ git grep "fy.current_fiscal_period" views/
+→ 2つのファイルで同じパターン発見
+→ 両方を同時に修正
+```
+
+#### ケース2: フィールド名の変更
+
+```
+❌ 間違った対応:
+フィールド名変更要求
+→ 即座に変更
+→ 過去に同じフィールドが別の理由で変更されていたことに気づかない
+
+✅ 正しい対応:
+フィールド名変更要求
+→ git log --oneline -20 views/daily_sales_report.view.lkml
+→ git show <commit-hash> で過去の変更理由を確認
+→ 「入力率99.8%のフィールドに変更した」という経緯を発見
+→ 同じ理由で今回も変更すべきか判断
+→ 変更実施
+```
+
+### 📊 コンプライアンススコアへの影響
+
+- **修正前にgit履歴確認**: +10点
+- **git blame/showで詳細確認**: +5点
+- **履歴確認せずに修正**: -20点（重大違反）
+- **過去の同様エラーを見落とし**: -15点
+
+### 💾 永続化ルール
+
+このルールは `.claude/CLAUDE.md` に永続化されます。
+ファイル修正時は、必ずこのルールを参照してください。
+
+### 🚨 重大性
+
+git履歴を確認しないことによる問題:
+- ✗ 過去の修正意図を無視した変更
+- ✗ 同じエラーを複数ファイルで繰り返す
+- ✗ 過去に修正済みの問題を再発させる
+- ✗ 他の開発者の意図を理解せずに上書き
+
+**違反時の対応**:
+1. 即座に作業を停止
+2. git履歴を確認
+3. 過去の修正意図を理解
+4. 必要なら修正をやり直す
+
+---
 
 ## 🎯 サンプルデータと実データの明確な区別（CRITICAL RULE）
 
@@ -156,6 +354,79 @@ Assistant:
 
 ---
 
+## 🎨 UI設計スキル自動適用ルール（DEFAULT BEHAVIOR）
+
+**基本原則: UI/Webコンポーネント作成時は必ずスキルファイルを参照する**
+
+### ✅ 必ず守るべきルール（絶対厳守）
+
+**1. スキルファイルの自動参照**
+- **対象ファイル**: `.html`, `.css`, `.tsx`, `.jsx`, `.vue`, `.svelte`
+- **スキル場所**: `.claude/skills/ui-design.md`
+- ✅ **正しい**: スキルのデザインパターンに従ってUI生成
+- ❌ **禁止**: デフォルトの「AIっぽい」デザインで生成
+
+**2. 適用タイミング**
+- UI/Webコンポーネントの新規作成時
+- 既存UIの大幅改修時
+- ランディングページ・ダッシュボード作成時
+- Reactコンポーネント作成時
+
+### 🎯 デザインパターン（必須適用）
+
+| 項目 | ❌ 避けるべき | ✅ 推奨 |
+|------|-------------|--------|
+| **フォント** | Inter, Roboto, Open Sans | JetBrains Mono, Space Grotesk, Playfair Display |
+| **カラー** | 紫グラデーション | カスタムCSS変数パレット |
+| **背景** | フラットな白/グレー | グラデーション、パターン、幾何学的エフェクト |
+| **タイポ** | 均一なウェイト | 極端なコントラスト（100/200 vs 800/900） |
+
+### 🔧 実装パターン
+
+**パターン1: 新規UI作成時**
+```
+[フロー]:
+1. スキルファイル(.claude/skills/ui-design.md)を参照
+2. Typography/Color/Motion/Backgrounds の4要素を適用
+3. Anti-patterns を避ける
+4. CSS変数を使用して一貫性を確保
+```
+
+**パターン2: CSS変数の必須使用**
+```css
+:root {
+  --color-primary: #2D3748;
+  --color-accent: #F56565;
+  --color-bg: #F7FAFC;
+  --color-text: #1A202C;
+  --color-muted: #718096;
+}
+```
+
+### 📋 チェックリスト（UI作成前に確認）
+
+- [ ] スキルファイル(.claude/skills/ui-design.md)を参照したか？
+- [ ] Inter/Roboto以外のフォントを使用しているか？
+- [ ] 紫グラデーションを避けているか？
+- [ ] CSS変数でカラーパレットを定義しているか？
+- [ ] フラットな白背景ではなく視覚的な深度があるか？
+
+### 📊 コンプライアンススコアへの影響
+
+- **スキル適用あり**: +5点
+- **デフォルトAIデザイン使用**: -10点（違反）
+- **スキル参照なし**: -15点
+
+### 💾 スキルファイル場所
+
+```
+C:\Users\musta\.claude\skills\ui-design.md
+```
+
+このルールは全てのUI生成タスクで自動適用されます。
+
+---
+
 ## 📂 ファイル処理の基本ルール（DEFAULT BEHAVIOR）
 
 ### Excel/バイナリファイルの処理
@@ -269,6 +540,397 @@ for sheet_name, df in df_dict.items():
 
 このルールは `.claude/CLAUDE.md` に永続化されます。
 Excelファイルに遭遇した際は、必ずこのルールを参照してください。
+
+---
+
+## 🔧 コード汎用性ルール（MANDATORY GENERICITY）
+
+**基本原則: 作成するコードは常に汎用的に設計し、ハードコードを避ける**
+
+### ✅ 必ず守るべきルール（絶対厳守）
+
+**1. ファイルパスのハードコード禁止**
+- ❌ **禁止**: `main()`内で具体的なパスを直接記述
+- ✅ **必須**: コマンドライン引数（argparse）または設定ファイルで外部化
+
+```python
+# ❌ 禁止パターン
+def main():
+    video_path = r"C:\Users\musta\Desktop\PJ\project\video.mp4"  # ハードコード
+
+# ✅ 正しいパターン
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--video', '-v', required=True, help='入力動画のパス')
+    parser.add_argument('--output', '-o', default='output', help='出力ディレクトリ')
+    args = parser.parse_args()
+    video_path = args.video
+```
+
+**2. クロスプラットフォーム対応**
+- ❌ **禁止**: Windows専用のフォントパス、パス区切り文字
+- ✅ **必須**: OS判定による分岐、`os.path.join()`、`pathlib.Path`の使用
+
+```python
+# ❌ 禁止パターン
+font_path = r"C:\Windows\Fonts\msgothic.ttc"
+
+# ✅ 正しいパターン
+import platform
+if platform.system() == 'Windows':
+    font_paths = [r"C:\Windows\Fonts\msgothic.ttc", r"C:\Windows\Fonts\meiryo.ttc"]
+elif platform.system() == 'Darwin':  # macOS
+    font_paths = ["/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"]
+else:  # Linux
+    font_paths = ["/usr/share/fonts/truetype/fonts-japanese-gothic.ttf"]
+```
+
+**3. 言語・ロケール文字列の外部化**
+- ❌ **禁止**: 日本語ラベルをコード内にハードコード
+- ✅ **必須**: 定数定義、設定ファイル、またはi18n対応
+
+```python
+# ❌ 禁止パターン
+cv2.putText(frame, "接地", (x, y), font, 1, color)
+
+# ✅ 正しいパターン
+LABELS = {
+    'ja': {'contact': '接地', 'liftoff': '離地'},
+    'en': {'contact': 'Contact', 'liftoff': 'Liftoff'}
+}
+lang = args.language or 'ja'
+cv2.putText(frame, LABELS[lang]['contact'], (x, y), font, 1, color)
+```
+
+**4. マジックナンバーの排除**
+- ❌ **禁止**: 閾値や定数を数値でハードコード
+- ✅ **必須**: 名前付き定数、クラス属性、または引数で定義
+
+```python
+# ❌ 禁止パターン
+if velocity < 0.004:  # マジックナンバー
+    detect_contact()
+
+# ✅ 正しいパターン
+VELOCITY_THRESHOLD = 0.004  # 速度閾値（単位: normalized/frame）
+
+class Detector:
+    def __init__(self, velocity_threshold=0.004):
+        self.velocity_threshold = velocity_threshold
+```
+
+**5. 検索パターンの汎用化**
+- ❌ **禁止**: 特定ファイル名パターンをハードコード
+- ✅ **必須**: 引数またはワイルドカードパターンで指定
+
+```python
+# ❌ 禁止パターン
+videos = [f for f in os.listdir(path) if "10m" in f]  # 特定パターン固定
+
+# ✅ 正しいパターン
+parser.add_argument('--pattern', default='*.mp4', help='検索パターン')
+videos = glob.glob(os.path.join(path, args.pattern))
+```
+
+### 🎯 汎用性チェックリスト（コード作成前に確認）
+
+コードを作成・修正する前に以下を確認:
+
+- [ ] `main()`内にハードコードされたパスはないか？
+- [ ] argparseまたは設定ファイルで入出力を外部化しているか？
+- [ ] フォントパスはOS判定で分岐しているか？
+- [ ] 日本語ラベルは定数または設定で定義されているか？
+- [ ] マジックナンバーは名前付き定数になっているか？
+- [ ] 検索パターンは引数で指定可能か？
+- [ ] 別環境（他のPC、他のプロジェクト）でも動作するか？
+
+### 📋 必須の引数パターン
+
+**スクリプト作成時は以下の引数を標準で用意:**
+
+```python
+parser = argparse.ArgumentParser(description='スクリプトの説明')
+
+# 必須引数
+parser.add_argument('input', help='入力ファイル/ディレクトリ')
+
+# オプション引数（推奨）
+parser.add_argument('--output', '-o', default='output', help='出力先')
+parser.add_argument('--config', '-c', help='設定ファイル（YAML/JSON）')
+parser.add_argument('--verbose', '-v', action='store_true', help='詳細出力')
+parser.add_argument('--dry-run', action='store_true', help='実行せずに確認のみ')
+```
+
+### 🚨 違反パターンと修正
+
+**❌ 違反例: ハードコードだらけのmain()**
+```python
+def main():
+    video = r"C:\Users\musta\Desktop\video.mp4"
+    output = r"C:\Users\musta\Desktop\output"
+    process(video, output)
+```
+
+**✅ 正しい例: 汎用的なmain()**
+```python
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('video', help='入力動画')
+    parser.add_argument('--output', '-o', default='output', help='出力先')
+    args = parser.parse_args()
+    process(args.video, args.output)
+
+if __name__ == '__main__':
+    main()
+```
+
+### 📊 コンプライアンススコアへの影響
+
+- **完全汎用化**: +10点
+- **部分的汎用化（引数あり、一部ハードコード）**: +5点
+- **main()にハードコードパス**: -15点（違反）
+- **クロスプラットフォーム非対応**: -10点
+- **マジックナンバー多数**: -10点
+
+### 💾 永続化ルール
+
+このルールは `.claude/CLAUDE.md` に永続化されます。
+Pythonスクリプトを作成する際は、必ずこのルールを参照してください。
+
+**適用対象:**
+- 全てのPythonスクリプト（`.py`）
+- シェルスクリプト（`.sh`, `.bat`）
+- 設定を含むあらゆるコード
+
+---
+
+## 🗑️ 一時ファイル自動削除ルール（AUTOMATIC CLEANUP）
+
+**基本原則: タスク完了時に一時ファイルを自動削除し、作業環境をクリーンに保つ**
+
+### ✅ 必須動作（絶対厳守）
+
+**タスク完了時、以下の一時ファイルを必ず削除する:**
+
+#### 削除対象ファイル
+
+1. **一時的なPythonスクリプト**
+   - `*_temp.py`, `*_tmp.py`
+   - `test_*.py`（テストスクリプト）
+   - `verify_*.py`（検証用スクリプト）
+   - `analyze_*.py`（分析用スクリプト）
+   - `debug_*.py`（デバッグ用スクリプト）
+   - タスク固有の名前を持つ一時スクリプト（例: `sensibility_word_mapper_FIXED.py`）
+
+2. **バージョン管理されていない中間ファイル**
+   - `*_OLD.py`, `*_BACKUP.py`
+   - `*_v1.py`, `*_v2.py`, `*_FIXED.py`, `*_PRODUCTION.py` など複数バージョン
+   - 最終版以外のファイル
+
+3. **分析・レポート用の一時ファイル**
+   - デバッグログ
+   - 一時的な分析結果
+   - 作業用のCSV/JSONファイル（最終版以外）
+
+#### 保持すべきファイル
+
+- ✅ **最終成果物**（例: `対訳_厳密版.xlsx`）
+- ✅ **ドキュメント**（README.md, レポート等）
+- ✅ **元データ**（ユーザー提供のファイル）
+- ✅ **プロジェクト固有のスクリプト**（継続使用するもの）
+
+### 🔧 実装パターン
+
+**パターン1: タスク完了時の手動クリーンアップ**
+
+```python
+import os
+import sys
+
+sys.stdout.reconfigure(encoding='utf-8')
+
+# 削除対象の一時ファイルリスト
+temp_files = [
+    r"C:\Users\musta\verify_*.py",
+    r"C:\Users\musta\analyze_*.py",
+    r"C:\Users\musta\*_temp.py",
+    r"C:\Users\musta\*_FIXED.py",
+    # ... その他の一時ファイル
+]
+
+print("🗑️  一時ファイル削除中...")
+for pattern in temp_files:
+    for file in glob.glob(pattern):
+        if os.path.exists(file):
+            os.remove(file)
+            print(f"✅ 削除: {os.path.basename(file)}")
+```
+
+**パターン2: 自己削除スクリプト**
+
+```python
+# スクリプトの最後に追加
+import os
+
+# タスク完了後、このスクリプト自体を削除
+if __name__ == '__main__':
+    # メイン処理
+    main()
+
+    # 自己削除
+    try:
+        os.remove(__file__)
+        print(f"✅ 削除: {os.path.basename(__file__)}")
+    except Exception as e:
+        print(f"⚠️  自己削除失敗: {e}")
+```
+
+### 📋 チェックリスト（タスク完了時）
+
+タスク完了前に必ず確認:
+
+- [ ] 最終成果物は適切なフォルダに保存されているか？
+- [ ] 一時的なPythonスクリプトは全て削除されたか？
+- [ ] 複数バージョンのファイルは整理されたか？
+- [ ] デバッグ用ファイルは削除されたか？
+- [ ] 作業フォルダはクリーンな状態か？
+
+### 🚨 違反パターンと修正
+
+**❌ 違反例: 一時ファイルを放置**
+```
+タスク完了
+　↓
+一時ファイル（10個以上）がC:\Users\mustaに残ったまま
+　↓
+次のタスクで混乱の原因になる
+```
+
+**✅ 正しい例: 自動削除**
+```
+タスク完了
+　↓
+一時ファイル削除スクリプト実行
+　↓
+7件削除、作業環境クリーン
+　↓
+最終成果物のみ整理されたフォルダに残る
+```
+
+### 💡 自動化の例
+
+**例1: 日英対訳マッピングタスク完了時**
+
+```
+タスク完了時に削除したファイル（実例）:
+✅ codex_error_analysis.py
+✅ verify_english_list.py
+✅ list_files.py
+✅ sensibility_word_mapper.py
+✅ sensibility_word_mapper_FIXED.py
+✅ sensibility_word_mapper_FIXED_v2.py
+✅ sensibility_word_mapper_PRODUCTION.py
+
+削除結果: 7件削除 → 作業環境クリーン
+```
+
+### 📊 コンプライアンススコアへの影響
+
+- **自動削除実施**: +5点
+- **一時ファイル5個以上放置**: -10点（違反）
+- **一時ファイル10個以上放置**: -20点（重大違反）
+
+### 💾 永続化とエンフォースメント
+
+このルールは `.claude/CLAUDE.md` に永続化され、以下で強制されます:
+- **Layer 6**: Post-task検証（完了時チェック）
+- **Session監視**: 一時ファイル数の監視
+- **TodoWrite**: タスク完了時にクリーンアップをTODOに追加
+
+### 🎯 ベストプラクティス
+
+1. **タスク開始時**: 一時ファイル保存場所を明確にする
+2. **タスク実行中**: 最終版かどうかを明示する（`*_FINAL.py`, `*_厳密版.xlsx`等）
+3. **タスク完了時**: 必ずクリーンアップスクリプトを実行
+4. **Byterover保存前**: 作業環境がクリーンであることを確認
+
+---
+
+## 🔄 自己テスト・反復改善ルール（ITERATIVE SELF-TESTING）
+
+**基本原則: コード作成後は必ず自分で動作テストを行い、問題があれば自動的に改善を繰り返す**
+
+### ✅ 必須動作（絶対厳守）
+
+**スクリプト・アプリケーション作成時は以下のフローを必ず実行:**
+
+#### Step 1: 実装完了後、即座にテスト実行
+```
+コード実装完了 → Bashツールで実行 → 結果を確認
+```
+
+#### Step 2: エラー・問題発見時は自動修正
+```
+エラー発生 → 原因分析 → コード修正 → 再テスト（Step 1に戻る）
+```
+
+#### Step 3: 成功するまで繰り返し
+```
+❌ 1回目: エラー → 修正 → 再テスト
+❌ 2回目: 期待と異なる → 調整 → 再テスト
+✅ 3回目: 成功 → 完了報告
+```
+
+### 🚨 禁止事項
+
+**❌ 絶対禁止: テストせずに完了報告**
+```
+❌ 「スクリプトを作成しました。実行してください。」
+✅ 「スクリプトを作成し、テスト実行しました。結果: 成功」
+```
+
+**❌ 絶対禁止: 1回のエラーで諦める**
+```
+❌ エラー発生 → 「エラーが出ました。確認してください」
+✅ エラー発生 → 原因特定 → 修正 → 再テスト → 成功まで繰り返し
+```
+
+### 📋 テスト実行のチェックリスト
+
+- [ ] スクリプトを実際に実行したか？
+- [ ] 出力結果を確認したか？
+- [ ] エラーがあれば修正して再実行したか？
+- [ ] 期待通りの結果が得られたか？
+
+### 🎯 具体例
+
+**例: 接地離地検出スクリプト改善**
+```
+1. generate_ground_contact_video.py を作成
+2. py scripts/generate_ground_contact_video.py 実行
+3. 結果: 「2回しか検出されない」→ 期待と異なる
+4. 原因分析: 「物理的制約が厳しすぎる」
+5. パラメータ調整
+6. 再テスト → 結果: 「5回検出」→ 成功
+7. ユーザーに報告
+```
+
+### 📊 コンプライアンススコアへの影響
+
+- **自己テスト実施・成功**: +10点
+- **エラー時に自動修正**: +5点
+- **テストせずに完了報告**: -20点（重大違反）
+- **1回のエラーで諦める**: -15点（違反）
+
+### 🔧 反復回数の目安
+
+| 複雑度 | 最大反復回数 |
+|--------|-------------|
+| 単純なスクリプト | 3回 |
+| 中程度のアプリ | 5回 |
+| 複雑なシステム | 10回 |
+
+**10回を超えても解決しない場合**: ユーザーに状況を報告し、方針を相談
 
 ---
 
@@ -1443,3 +2105,213 @@ grep -r "bqbusiness_discussions___employee_name___construction_employeebq" views
 ---
 
 **重要**: このルールは過去の実際のミスから学んだ教訓です。必ず守ってください。
+
+---
+
+## 📊 商談テーブル（o10936_business_discussions）フィールドマッピング
+
+### 営業担当者フィールド（重要）
+
+**商談テーブルには複数の「営業担当者」関連フィールドがあり、入力率が大きく異なる。**
+
+#### ✅ 正しいフィールド（99.8%入力あり）
+
+| 用途 | BigQueryフィールド | 入力率 |
+|------|-------------------|--------|
+| **営業担当者名** | `bqbusiness_discussions___employee_namebq` | 99.8% |
+| **営業担当者コード** | `bqsales_cdbq` | 99.8% |
+
+#### ❌ 使用しないフィールド（ほぼ空）
+
+| 用途 | BigQueryフィールド | 入力率 |
+|------|-------------------|--------|
+| 営業担当者ID | `bqsales_staffbq` | 2.9% |
+| 営業担当者名（別） | `bqbusiness_discussions___sales_staff_namebq` | 2.9% |
+
+#### 工務担当者フィールド
+
+| 用途 | BigQueryフィールド | 入力率 |
+|------|-------------------|--------|
+| 工務担当者ID | `bqconstruction_employeebq` | 60% |
+| 工務担当者名 | `bqbusiness_discussions___employee_name___construction_employeebq` | 60% |
+
+### CSVとBigQueryの対応
+
+| CSVカラム名（地球UI） | BigQueryフィールド |
+|----------------------|-------------------|
+| 営業担当者 | `bqbusiness_discussions___employee_namebq` |
+| 営業担当者コード | `bqsales_cdbq` |
+| 工務担当者 | `bqbusiness_discussions___employee_name___construction_employeebq` |
+| 工務担当者コード | `bqconstruction_employeebq` |
+
+### 注意事項
+
+- `bqsales_staffbq` と `bqbusiness_discussions___sales_staff_namebq` は**使用禁止**（ほぼ空）
+- 営業担当者名は `bqbusiness_discussions___employee_namebq` を直接使用（JOINは不要）
+- 2025-12-19 調査結果
+
+### 修正済みファイル（2025-12-19）
+
+| ファイル | 修正内容 |
+|---------|---------|
+| `HW_Pipeline_Value_detail.view.lkml` | `bqsales_staffbq` → `bqsales_cdbq`, `bqbusiness_discussions___sales_staff_namebq` → `bqbusiness_discussions___employee_namebq` |
+| `marginal_profitforecast_sales_detail.view.lkml` | 同上（7箇所のUNION ALL全て修正） |
+
+### 要修正の可能性があるファイル
+
+`bqbusiness_discussions___sales_staff_namebq` を使用しているファイルは同様の問題が発生する可能性あり。
+検索コマンド:
+```bash
+grep -r "bqsales_staffbq" views/
+grep -r "bqbusiness_discussions___sales_staff_namebq" views/
+```
+
+---
+
+## 🧠 Serenaメモリ活用ルール（MANDATORY MEMORY USAGE）
+
+**基本原則: 重要な調査結果・学習内容はSerenaメモリに保存し、次回以降のセッションで活用する**
+
+### ✅ 必ず守るべきルール
+
+**1. 調査結果・発見事項の保存**
+- 新しいフィールドマッピング情報
+- データ入力率の調査結果
+- バグの原因と修正方法
+- プロジェクト固有のルール
+
+**2. セッション開始時のメモリ確認**
+```
+タスク開始時:
+1. mcp__serena__list_memories で利用可能なメモリを確認
+2. 関連するメモリがあれば mcp__serena__read_memory で読み込む
+3. 過去の知識を踏まえて作業を開始
+```
+
+**3. 保存すべき情報の例**
+- BigQueryフィールドマッピング（正しいフィールド vs 使用禁止フィールド）
+- LookML実装パターン
+- テーブル結合キー
+- 修正履歴と根本原因
+
+### 🔧 Serenaメモリコマンド
+
+```python
+# メモリ一覧を確認
+mcp__serena__list_memories()
+
+# メモリを読み込む
+mcp__serena__read_memory(memory_file_name="business_discussions_field_mapping")
+
+# メモリに書き込む
+mcp__serena__write_memory(
+    memory_file_name="your_memory_name",
+    content="# タイトル\n\n内容..."
+)
+
+# メモリを編集
+mcp__serena__edit_memory(
+    memory_file_name="your_memory_name",
+    needle="置換前",
+    repl="置換後",
+    mode="literal"
+)
+
+# メモリを削除
+mcp__serena__delete_memory(memory_file_name="your_memory_name")
+```
+
+### 📋 現在保存されているメモリ
+
+| メモリ名 | 内容 |
+|---------|------|
+| `business_discussions_field_mapping` | 商談テーブルのフィールドマッピング情報（営業担当者/工務担当者フィールド） |
+
+### 🎯 メモリ保存のタイミング
+
+1. **データ調査後**: フィールド入力率やマッピング情報を発見した時
+2. **バグ修正後**: 根本原因と修正方法を記録
+3. **新しいパターン発見後**: 再利用可能な実装パターン
+4. **ユーザーから「記憶して」と言われた時**: 即座にSerenaメモリに保存
+
+### 📊 コンプライアンススコアへの影響
+
+- **調査結果をメモリに保存**: +5点
+- **セッション開始時にメモリ確認**: +3点
+- **重要な発見を保存せずに終了**: -10点
+
+---
+
+## 🔴 SQLエラー自動メモリ保存ルール（AUTOMATIC ERROR MEMORY）
+
+**基本原則: SQLエラーが発生したら、その対処法を汎用的にまとめてSerenaメモリに保存する**
+
+### ✅ 必ず守るべきルール（絶対厳守）
+
+**1. SQLエラー発生時の対応フロー**
+```
+エラー発生
+  ↓
+原因を特定
+  ↓
+修正して再実行
+  ↓
+成功したら、エラーと対処法を汎用的にまとめる
+  ↓
+Serenaメモリ（sql_runner_tips）に追記
+```
+
+**2. メモリに保存する内容**
+- エラーメッセージ（例）
+- 原因の説明
+- ❌ NG例（間違ったコード）
+- ✅ OK例（正しいコード）
+- 汎用的なポイント
+
+**3. メモリ保存先**
+- **メモリ名**: `sql_runner_tips`
+- **追記方法**: `mcp__serena__edit_memory` で既存内容に追加
+
+### 🔧 保存フォーマット
+
+```markdown
+## エラー: [エラータイプ]
+
+**エラー例:**
+\`\`\`
+[エラーメッセージ]
+\`\`\`
+
+**原因:**
+- [原因の説明]
+
+**❌ NG例:**
+\`\`\`sql
+[間違ったコード]
+\`\`\`
+
+**✅ OK例:**
+\`\`\`sql
+[正しいコード]
+\`\`\`
+```
+
+### 📋 対象エラー
+
+- BigQuery構文エラー
+- SQL Runner固有のエラー
+- 日本語文字エラー
+- JOIN/UNNEST関連エラー
+- その他のSQLエラー
+
+### 🎯 目的
+
+- **同じミスを繰り返さない**
+- **過去のエラー対処を即座に参照できる**
+- **学習内容をセッション間で共有**
+
+### 📊 コンプライアンススコアへの影響
+
+- **エラー対処をメモリに保存**: +5点
+- **同じエラーを2回以上繰り返す**: -15点（違反）
+- **メモリを参照せずにエラー**: -10点
